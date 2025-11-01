@@ -1,0 +1,4 @@
+CREATE DATABASE webapp;
+CREATE USER 'user'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON webapp.* TO 'user'@'%';
+FLUSH PRIVILEGES;
