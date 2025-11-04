@@ -1,16 +1,21 @@
-name: CI/CD Docker
+name: CI/CD Docker Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
+
+env:
+  IMAGE_FRONTEND: ${{ secrets.DOCKERHUB_USERNAME }}/virtualized-webapp-frontend
+  IMAGE_BACKEND: ${{ secrets.DOCKERHUB_USERNAME }}/virtualized-webapp-backend
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -22,34 +27,45 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push frontend image
+      - name: Build & Push Frontend Image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          file: ./frontend/dockerfile
+          file: ./frontend/Dockerfile
           push: true
-          tags: piyush6264/virtualized-webapp-frontend:latest
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:latest
+            ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_FRONTEND }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_FRONTEND }}:cache,mode=max
 
-      - name: Build and push backend image
+      - name: Build & Push Backend Image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          file: ./backend/dockerfile
+          file: ./backend/Dockerfile
           push: true
-          tags: piyush6264/virtualized-webapp-backend:latest
+          tags: |
+            ${{ env.IMAGE_BACKEND }}:latest
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_BACKEND }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_BACKEND }}:cache,mode=max
 
   code-check:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Run backend code check (npm install & lint)
+
+      - name: Backend Lint
         run: |
           cd backend
           npm install
-          npm run lint || echo "No lint script defined"
-      - name: Run frontend code check (optional)
+          npm run lint || echo "⚠️ No lint script found, skipping"
+
+      - name: Frontend Lint
         run: |
           cd frontend
-          npm install || echo "No package.json"
-          npm run lint || echo "No lint script defined"
+          npm install || echo "⚠️ No package.json, skipping"
+          npm run lint || echo "⚠️ No lint script found, skipping"
